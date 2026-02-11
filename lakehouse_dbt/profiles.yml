@@ -1,0 +1,13 @@
+lakehouse_dbt:
+  outputs:
+    dev:
+      type: trino
+      method: none
+      user: root
+      database: iceberg
+      host: localhost
+      port: 8080
+      schema: public
+      threads: 4
+      cert: True
+  target: dev

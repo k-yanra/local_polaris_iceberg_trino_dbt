@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: postgresql_flights
+    database: postgresql
+    schema: flights
+    tables:
+      - name: flights
+      - name: airlines
+      - name: airports
+      - name: cancellation_codes

@@ -1,0 +1,66 @@
+
+printf "%s:%s" "root" "secret" | base64
+
+
+curl -X POST "http://localhost:8181/api/catalog/v1/oauth/tokens" \
+  -H "Authorization: Basic cm9vdDpzZWNyZXQ=" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data "grant_type=client_credentials&scope=PRINCIPAL_ROLE:ALL"
+
+# curl result example
+{"access_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwb2xhcmlzIiwic3ViIjoicm9vdCIsImlhdCI6MTc2OTQ4NDkyOSwiZXhwIjoxNzY5NDg4NTI5LCJqdGkiOiJiNmNlYzMyMC1jYWZjLTQ5ZTgtYTk5NS02MGFkNTJhOTY1NjciLCJhY3RpdmUiOnRydWUsImNsaWVudF9pZCI6InJvb3QiLCJwcmluY2lwYWxJZCI6MSwic2NvcGUiOiJQUklOQ0lQQUxfUk9MRTpBTEwifQ.HYavlKsjhji6gx2tNQmsidDwHqFcKKSJ7UKzvOYYjRuE9JENoa_PU3uRQ0Xmwd1Cm4JASP2_X7jT2tec5pyO4G0QHxC0Y4_M9GFXU22se6qk3LA3DsLpV3sqNdNmBVn2cfU0pJyUT6uteHHYg2qZjQj58MnstSu43lf-W2Gm8zOxCGcBq4zunKNF4sK67Fv7-8MebhIW9j0tB_bw2LsacaIKnBbQPLnqwvvKPPyRLLLmME1YF_VoWDf_wHLSikEe41ZUX_BYuE-jbQ4aw9cb8-iEDI4RGnswQj3YpkHJDxgGHW0f_UNGo_3-T1z4ms87lUgj82YpIdy8XR3jKPa8VQ","token_type":"bearer","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","expires_in":3600}
+
+
+ACCESS_TOKEN='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJwb2xhcmlzIiwic3ViIjoicm9vdCIsImlhdCI6MTc3MDcwNjIwNiwiZXhwIjoxNzcwNzA5ODA2LCJqdGkiOiI0MzBkNmJhZC1lMThkLTRiMjktYWNiMi0yMGYxMmVhMmUxN2MiLCJhY3RpdmUiOnRydWUsImNsaWVudF9pZCI6InJvb3QiLCJwcmluY2lwYWxJZCI6MSwic2NvcGUiOiJQUklOQ0lQQUxfUk9MRTpBTEwifQ.kMhkGtgBc1gwhw0WqZQztIKf_LMklBfVjsgz5EXLUnwBs5YogI_MQGefBLJRAfyoYAn2XiEV8XdbfvgoIof8C2wA7QymzA8pZnc4zxe-VmOaTyaL3wlA2gtUw7bIlI7wBGoNrUdwXrvAQ94amVaXsCY04eCHKf19tmdC9knTW4ZgiHD5TtfprP_qfdlKZzgzjxqF0faj5RtYImg09bt572R5aoVnPG-Fj_4SoX_OV9WPN0sG--Evczx38QSfjGoiObvp0YA1VOzj415iBomxaz7tmvyMEKTNe7y6wiFmYlJ9LEjXbklkoQwW0Keo6DaUyump58lwjLgJwv-ZeNByNQ'
+
+echo $ACCESS_TOKEN
+
+curl -i -X POST \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  http://localhost:8181/api/management/v1/catalogs \
+  --json '{
+    "name": "polariscatalog",
+    "type": "INTERNAL",
+    "properties": {
+      "default-base-location": "s3://warehouse",
+      "s3.endpoint": "http://minio:9000",
+      "s3.path-style-access": "true",
+      "s3.access-key-id": "admin",
+      "s3.secret-access-key": "password",
+      "s3.region": "dummy-region"
+    },
+    "storageConfigInfo": {
+      "roleArn": "arn:aws:iam::000000000000:role/minio-polaris-role",
+      "storageType": "S3",
+      "allowedLocations": [
+        "s3://warehouse/*"
+      ]
+    }
+  }'
+
+
+  curl -X GET http://localhost:8181/api/management/v1/catalogs \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+
+  # Create a catalog admin role
+curl -X PUT http://localhost:8181/api/management/v1/catalogs/polariscatalog/catalog-roles/catalog_admin/grants \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --json '{"grant":{"type":"catalog", "privilege":"CATALOG_MANAGE_CONTENT"}}'
+
+# Create a data engineer role
+curl -X POST http://localhost:8181/api/management/v1/principal-roles \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --json '{"principalRole":{"name":"data_engineer"}}'
+
+# Connect the roles
+curl -X PUT http://localhost:8181/api/management/v1/principal-roles/data_engineer/catalog-roles/polariscatalog \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --json '{"catalogRole":{"name":"catalog_admin"}}'
+
+# Give root the data engineer role
+curl -X PUT http://localhost:8181/api/management/v1/principals/root/principal-roles \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  --json '{"principalRole": {"name":"data_engineer"}}'
+
+
